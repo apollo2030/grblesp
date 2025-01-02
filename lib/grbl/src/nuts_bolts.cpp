@@ -34,71 +34,71 @@
 uint8_t read_float(char *line, uint8_t *char_counter, float *float_ptr)
 {
   char *ptr = line + *char_counter;
-  unsigned char c;
+  unsigned char current_char;
 
   // Grab first character and increment pointer. No spaces assumed in line.
-  c = *ptr++;
+  current_char = *ptr++;
 
   // Capture initial positive/minus character
-  bool isnegative = false;
-  if (c == '-') {
-    isnegative = true;
-    c = *ptr++;
-  } else if (c == '+') {
-    c = *ptr++;
+  bool is_negative = false;
+  if (current_char == '-') {
+    is_negative = true;
+    current_char = *ptr++;
+  } else if (current_char == '+') {
+    current_char = *ptr++;
   }
 
   // Extract number into fast integer. Track decimal in terms of exponent value.
-  uint32_t intval = 0;
-  int8_t exp = 0;
-  uint8_t ndigit = 0;
-  bool isdecimal = false;
+  uint32_t integer_value = 0;
+  int88_t exponent = 0;
+  uint8_t num_digits = 0;
+  bool is_decimal = false;
   while(1) {
-    c -= '0';
-    if (c <= 9) {
-      ndigit++;
-      if (ndigit <= MAX_INT_DIGITS) {
-        if (isdecimal) { exp--; }
-        intval = (((intval << 2) + intval) << 1) + c; // intval*10 + c
+    current_char -= '0';
+    if (current_char <= 9) {
+      num_digits++;
+      if (num_digits <= MAX_INT_DIGITS) {
+        if (is_decimal) { exponent--; }
+        integer_value = (((integer_value << 2) + integer_value) << 1) + current_char; // integer_value*10 + current_char
       } else {
-        if (!(isdecimal)) { exp++; }  // Drop overflow digits
+        if (!(is_decimal)) { exponent++; }  // Drop overflow digits
       }
-    } else if (c == (('.'-'0') & 0xff)  &&  !(isdecimal)) {
-      isdecimal = true;
+    } else if (current_char == (('.'-'0') & 0xff)  &&  !(is_decimal)) {
+      is_decimal = true;
     } else {
       break;
     }
-    c = *ptr++;
+    current_char = *ptr++;
   }
 
   // Return if no digits have been read.
-  if (!ndigit) { return(false); };
+  if (!num_digits) { return(false); };
 
   // Convert integer into floating point.
-  float fval;
-  fval = (float)intval;
+  float float_value;
+  float_value = (float)integer_value;
 
   // Apply decimal. Should perform no more than two floating point multiplications for the
   // expected range of E0 to E-4.
-  if (fval != 0) {
-    while (exp <= -2) {
-      fval *= 0.01;
-      exp += 2;
+  if (float_value != 0) {
+    while (exponent <= -2) {
+      float_value *= 0.01;
+      exponent += 2;
     }
-    if (exp < 0) {
-      fval *= 0.1;
-    } else if (exp > 0) {
+    if (exponent < 0) {
+      float_value *= 0.1;
+    } else if (exponent > 0) {
       do {
-        fval *= 10.0;
-      } while (--exp > 0);
+        float_value *= 10.0;
+      } while (--exponent > 0);
     }
   }
 
   // Assign floating point value with correct sign.
-  if (isnegative) {
-    *float_ptr = -fval;
+  if (is_negative) {
+    *float_ptr = -float_value;
   } else {
-    *float_ptr = fval;
+    *float_ptr = float_value;
   }
 
   *char_counter = ptr - line - 1; // Set char_counter to next statement
@@ -110,8 +110,8 @@ uint8_t read_float(char *line, uint8_t *char_counter, float *float_ptr)
 // Non-blocking delay function used for general operation and suspend features.
 void delay_sec(float seconds, uint8_t mode)
 {
- 	uint16_t i = ceil(1000/DWELL_TIME_STEP*seconds);
-	while (i-- > 0) {
+ 	uint16_t iterations = ceil(1000/DWELL_TIME_STEP*seconds);
+	while (iterations-- > 0) {
     ESP.wdtFeed();
 		if (sys.abort) { return; }
 		if (mode == DELAY_MODE_DWELL) {
@@ -127,9 +127,9 @@ void delay_sec(float seconds, uint8_t mode)
 
 // Delays variable defined milliseconds. Compiler compatibility fix for _delay_ms(),
 // which only accepts constants in future compiler releases.
-void delay_ms(uint16_t ms)
+void delay_ms(uint16_t milliseconds)
 {
-  while ( ms-- ) { ESP.wdtFeed(); delayMicroseconds(950); }
+  while ( milliseconds-- ) { ESP.wdtFeed(); delayMicroseconds(950); }
 }
 
 // Simple hypotenuse computation function.

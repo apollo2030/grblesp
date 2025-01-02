@@ -91,13 +91,13 @@ void mc_arc(float *target, plan_line_data_t *pl_data, float *position, float *of
 {
   float center_axis0 = position[axis_0] + offset[axis_0];
   float center_axis1 = position[axis_1] + offset[axis_1];
-  float r_axis0 = -offset[axis_0];  // Radius vector from center to current location
-  float r_axis1 = -offset[axis_1];
-  float rt_axis0 = target[axis_0] - center_axis0;
-  float rt_axis1 = target[axis_1] - center_axis1;
+  float radius_axis0 = -offset[axis_0];  // Radius vector from center to current location
+  float radius_axis1 = -offset[axis_1];
+  float target_axis0 = target[axis_0] - center_axis0;
+  float target_axis1 = target[axis_1] - center_axis1;
 
   // CCW angle between position and target from circle center. Only one atan2() trig computation required.
-  float angular_travel = atan2(r_axis0*rt_axis1-r_axis1*rt_axis0, r_axis0*rt_axis0+r_axis1*rt_axis1);
+  float angular_travel = atan2(radius_axis0*target_axis1-radius_axis1*target_axis0, radius_axis0*target_axis0+radius_axis1*target_axis1);
   if (is_clockwise_arc) { // Correct atan2 output per direction
     if (angular_travel >= -ARC_ANGULAR_TRAVEL_EPSILON) { angular_travel -= 2*M_PI; }
   } else {
@@ -155,7 +155,7 @@ void mc_arc(float *target, plan_line_data_t *pl_data, float *position, float *of
 
     float sin_Ti;
     float cos_Ti;
-    float r_axisi;
+    float radius_axisi;
     uint16_t i;
     uint8_t count = 0;
 
@@ -163,23 +163,23 @@ void mc_arc(float *target, plan_line_data_t *pl_data, float *position, float *of
       delay(0);
       if (count < N_ARC_CORRECTION) {
         // Apply vector rotation matrix. ~40 usec
-        r_axisi = r_axis0*sin_T + r_axis1*cos_T;
-        r_axis0 = r_axis0*cos_T - r_axis1*sin_T;
-        r_axis1 = r_axisi;
+        radius_axisi = radius_axis0*sin_T + radius_axis1*cos_T;
+        radius_axis0 = radius_axis0*cos_T - radius_axis1*sin_T;
+        radius_axis1 = radius_axisi;
         count++;
       } else {
         // Arc correction to radius vector. Computed only every N_ARC_CORRECTION increments. ~375 usec
         // Compute exact location by applying transformation matrix from initial radius vector(=-offset).
         cos_Ti = cos(i*theta_per_segment);
         sin_Ti = sin(i*theta_per_segment);
-        r_axis0 = -offset[axis_0]*cos_Ti + offset[axis_1]*sin_Ti;
-        r_axis1 = -offset[axis_0]*sin_Ti - offset[axis_1]*cos_Ti;
+        radius_axis0 = -offset[axis_0]*cos_Ti + offset[axis_1]*sin_Ti;
+        radius_axis1 = -offset[axis_0]*sin_Ti - offset[axis_1]*cos_Ti;
         count = 0;
       }
 
       // Update arc_target location
-      position[axis_0] = center_axis0 + r_axis0;
-      position[axis_1] = center_axis1 + r_axis1;
+      position[axis_0] = center_axis0 + radius_axis0;
+      position[axis_1] = center_axis1 + radius_axis1;
       position[axis_linear] += linear_per_segment;
 
       mc_line(position, pl_data);

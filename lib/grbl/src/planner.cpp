@@ -37,7 +37,7 @@ typedef struct {
   float previous_unit_vec[N_AXIS];   // Unit vector of previous path line segment
   float previous_nominal_speed;  // Nominal speed of previous path line segment
 } planner_t;
-static planner_t pl;
+static planner_t planner;
 
 
 // Returns the index of the next block in the ring buffer. Also called by stepper segment buffer.
@@ -198,7 +198,7 @@ static void planner_recalculate()
 
 void plan_reset()
 {
-  memset(&pl, 0, sizeof(planner_t)); // Clear planner struct
+  memset(&planner, 0, sizeof(planner_t)); // Clear planner struct
   plan_reset_buffer();
 }
 
@@ -294,7 +294,7 @@ void plan_update_velocity_profile_parameters()
     prev_nominal_speed = nominal_speed;
     block_index = plan_next_block_index(block_index);
   }
-  pl.previous_nominal_speed = prev_nominal_speed; // Update prev nominal speed for next incoming block.
+  planner.previous_nominal_speed = prev_nominal_speed; // Update prev nominal speed for next incoming block.
 }
 
 
@@ -339,7 +339,7 @@ uint8_t plan_buffer_line(float *target, plan_line_data_t *pl_data)
     #else
       memcpy(position_steps, sys_position, sizeof(sys_position));
     #endif
-  } else { memcpy(position_steps, pl.position, sizeof(pl.position)); }
+  } else { memcpy(position_steps, planner.position, sizeof(planner.position)); }
 
   #ifdef COREXY
     target_steps[A_MOTOR] = lround(target[A_MOTOR]*settings.steps_per_mm[A_MOTOR]);
@@ -429,8 +429,8 @@ uint8_t plan_buffer_line(float *target, plan_line_data_t *pl_data)
     float junction_unit_vec[N_AXIS];
     float junction_cos_theta = 0.0;
     for (idx=0; idx<N_AXIS; idx++) {
-      junction_cos_theta -= pl.previous_unit_vec[idx]*unit_vec[idx];
-      junction_unit_vec[idx] = unit_vec[idx]-pl.previous_unit_vec[idx];
+      junction_cos_theta -= planner.previous_unit_vec[idx]*unit_vec[idx];
+      junction_unit_vec[idx] = unit_vec[idx]-planner.previous_unit_vec[idx];
     }
 
     // NOTE: Computed without any expensive trig, sin() or acos(), by trig half angle identity of cos(theta).
@@ -454,12 +454,12 @@ uint8_t plan_buffer_line(float *target, plan_line_data_t *pl_data)
   // Block system motion from updating this data to ensure next g-code motion is computed correctly.
   if (!(block->condition & PL_COND_FLAG_SYSTEM_MOTION)) {
     float nominal_speed = plan_compute_profile_nominal_speed(block);
-    plan_compute_profile_parameters(block, nominal_speed, pl.previous_nominal_speed);
-    pl.previous_nominal_speed = nominal_speed;
+    plan_compute_profile_parameters(block, nominal_speed, planner.previous_nominal_speed);
+    planner.previous_nominal_speed = nominal_speed;
 
     // Update previous path unit_vector and planner position.
-    memcpy(pl.previous_unit_vec, unit_vec, sizeof(unit_vec)); // pl.previous_unit_vec[] = unit_vec[]
-    memcpy(pl.position, target_steps, sizeof(target_steps)); // pl.position[] = target_steps[]
+    memcpy(planner.previous_unit_vec, unit_vec, sizeof(unit_vec)); // planner.previous_unit_vec[] = unit_vec[]
+    memcpy(planner.position, target_steps, sizeof(target_steps)); // planner.position[] = target_steps[]
 
     // New block is all set. Update buffer head and next buffer head indices.
     block_buffer_head = next_buffer_head;
@@ -481,14 +481,14 @@ void plan_sync_position()
   for (idx=0; idx<N_AXIS; idx++) {
     #ifdef COREXY
       if (idx==X_AXIS) {
-        pl.position[X_AXIS] = system_convert_corexy_to_x_axis_steps(sys_position);
+        planner.position[X_AXIS] = system_convert_corexy_to_x_axis_steps(sys_position);
       } else if (idx==Y_AXIS) {
-        pl.position[Y_AXIS] = system_convert_corexy_to_y_axis_steps(sys_position);
+        planner.position[Y_AXIS] = system_convert_corexy_to_y_axis_steps(sys_position);
       } else {
-        pl.position[idx] = sys_position[idx];
+        planner.position[idx] = sys_position[idx];
       }
     #else
-      pl.position[idx] = sys_position[idx];
+      planner.position[idx] = sys_position[idx];
     #endif
   }
 }
