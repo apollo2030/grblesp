@@ -24,13 +24,13 @@
 settings_t settings;
 
 // Method to store startup lines into EEPROM
-void settings_store_startup_line(uint8_t n, char *line)
+void settings_store_startup_line(uint8_t line_number, char *line)
 {
   #ifdef FORCE_BUFFER_SYNC_DURING_EEPROM_WRITE
     protocol_buffer_synchronize(); // A startup line may contain a motion and be executing.
   #endif
-  uint32_t addr = n*(LINE_BUFFER_SIZE+1)+EEPROM_ADDR_STARTUP_BLOCK;
-  memcpy_to_eeprom_with_checksum(addr,(char*)line, LINE_BUFFER_SIZE);
+  uint32_t address = line_number*(LINE_BUFFER_SIZE+1)+EEPROM_ADDR_STARTUP_BLOCK;
+  memcpy_to_eeprom_with_checksum(address,(char*)line, LINE_BUFFER_SIZE);
 }
 
 
@@ -49,8 +49,8 @@ void settings_write_coord_data(uint8_t coord_select, float *coord_data)
   #ifdef FORCE_BUFFER_SYNC_DURING_EEPROM_WRITE
     protocol_buffer_synchronize();
   #endif
-  uint32_t addr = coord_select*(sizeof(float)*N_AXIS+1) + EEPROM_ADDR_PARAMETERS;
-  memcpy_to_eeprom_with_checksum(addr,(char*)coord_data, sizeof(float)*N_AXIS);
+  uint32_t address = coord_select*(sizeof(float)*N_AXIS+1) + EEPROM_ADDR_PARAMETERS;
+  memcpy_to_eeprom_with_checksum(address,(char*)coord_data, sizeof(float)*N_AXIS);
 }
 
 
@@ -131,10 +131,10 @@ void settings_restore(uint8_t restore_flag) {
   }
 
   if (restore_flag & SETTINGS_RESTORE_PARAMETERS) {
-    uint8_t idx;
+    uint8_t index;
     float coord_data[N_AXIS];
     memset(&coord_data, 0, sizeof(coord_data));
-    for (idx=0; idx <= SETTING_INDEX_NCOORD; idx++) { settings_write_coord_data(idx, coord_data); }
+    for (index=0; index <= SETTING_INDEX_NCOORD; index++) { settings_write_coord_data(index, coord_data); }
   }
 
   if (restore_flag & SETTINGS_RESTORE_STARTUP_LINES) {
@@ -156,13 +156,13 @@ void settings_restore(uint8_t restore_flag) {
 
 
 // Reads startup line from EEPROM. Updated pointed line string data.
-uint8_t settings_read_startup_line(uint8_t n, char *line)
+uint8_t settings_read_startup_line(uint8_t line_number, char *line)
 {
-  uint32_t addr = n*(LINE_BUFFER_SIZE+1)+EEPROM_ADDR_STARTUP_BLOCK;
-  if (!(memcpy_from_eeprom_with_checksum((char*)line, addr, LINE_BUFFER_SIZE))) {
+  uint32_t address = line_number*(LINE_BUFFER_SIZE+1)+EEPROM_ADDR_STARTUP_BLOCK;
+  if (!(memcpy_from_eeprom_with_checksum((char*)line, address, LINE_BUFFER_SIZE))) {
     // Reset line with default value
     line[0] = 0; // Empty line
-    settings_store_startup_line(n, line);
+    settings_store_startup_line(line_number, line);
     return(false);
   }
   return(true);
@@ -185,8 +185,8 @@ uint8_t settings_read_build_info(char *line)
 // Read selected coordinate data from EEPROM. Updates pointed coord_data value.
 uint8_t settings_read_coord_data(uint8_t coord_select, float *coord_data)
 {
-  uint32_t addr = coord_select*(sizeof(float)*N_AXIS+1) + EEPROM_ADDR_PARAMETERS;
-  if (!(memcpy_from_eeprom_with_checksum((char*)coord_data, addr, sizeof(float)*N_AXIS))) {
+  uint32_t address = coord_select*(sizeof(float)*N_AXIS+1) + EEPROM_ADDR_PARAMETERS;
+  if (!(memcpy_from_eeprom_with_checksum((char*)coord_data, address, sizeof(float)*N_AXIS))) {
     // Reset with default zero vector
     clear_vector_float(coord_data);
     settings_write_coord_data(coord_select,coord_data);
@@ -219,11 +219,11 @@ uint8_t settings_store_global_setting(uint8_t parameter, float value) {
     // Store axis configuration. Axis numbering sequence set by AXIS_SETTING defines.
     // NOTE: Ensure the setting index corresponds to the report.c settings printout.
     parameter -= AXIS_SETTINGS_START_VAL;
-    uint8_t set_idx = 0;
-    while (set_idx < AXIS_N_SETTINGS) {
+    uint8_t set_index = 0;
+    while (set_index < AXIS_N_SETTINGS) {
       if (parameter < N_AXIS) {
         // Valid axis setting found.
-        switch (set_idx) {
+        switch (set_index) {
           case 0:
             #ifdef MAX_STEP_RATE_HZ
               if (value*settings.max_rate[parameter] > (MAX_STEP_RATE_HZ*60.0)) { return(STATUS_MAX_STEP_RATE_EXCEEDED); }
@@ -241,9 +241,9 @@ uint8_t settings_store_global_setting(uint8_t parameter, float value) {
         }
         break; // Exit while-loop after setting has been configured and proceed to the EEPROM write call.
       } else {
-        set_idx++;
+        set_index++;
         // If axis index greater than N_AXIS or setting index greater than number of axis settings, error out.
-        if ((parameter < AXIS_SETTINGS_INCREMENT) || (set_idx == AXIS_N_SETTINGS)) { return(STATUS_INVALID_STATEMENT); }
+        if ((parameter < AXIS_SETTINGS_INCREMENT) || (set_index == AXIS_N_SETTINGS)) { return(STATUS_INVALID_STATEMENT); }
         parameter -= AXIS_SETTINGS_INCREMENT;
       }
     }
@@ -335,42 +335,42 @@ void settings_init()
 }
 
 // Returns step pin mask according to Grbl internal axis indexing.
-uint8_t get_step_pin_mask(uint8_t axis_idx)
+uint8_t get_step_pin_mask(uint8_t axis_index)
 {
-  if ( axis_idx == X_AXIS ) { return((1<<X_STEP_BIT)); }
-  if ( axis_idx == Y_AXIS ) { return((1<<Y_STEP_BIT)); }
-  if ( axis_idx == Z_AXIS ) { return((1<<Z_STEP_BIT)); }
-  if ( axis_idx == A_AXIS ) { return((1<<A_STEP_BIT)); }
-  if ( axis_idx == B_AXIS ) { return((1<<B_STEP_BIT)); }
-  if ( axis_idx == C_AXIS ) { return((1<<C_STEP_BIT)); }
-  if ( axis_idx == D_AXIS ) { return((1<<D_STEP_BIT)); }
+  if ( axis_index == X_AXIS ) { return((1<<X_STEP_BIT)); }
+  if ( axis_index == Y_AXIS ) { return((1<<Y_STEP_BIT)); }
+  if ( axis_index == Z_AXIS ) { return((1<<Z_STEP_BIT)); }
+  if ( axis_index == A_AXIS ) { return((1<<A_STEP_BIT)); }
+  if ( axis_index == B_AXIS ) { return((1<<B_STEP_BIT)); }
+  if ( axis_index == C_AXIS ) { return((1<<C_STEP_BIT)); }
+  if ( axis_index == D_AXIS ) { return((1<<D_STEP_BIT)); }
   return((1<<E_STEP_BIT));
 }
 
 
 // Returns direction pin mask according to Grbl internal axis indexing.
-uint8_t get_direction_pin_mask(uint8_t axis_idx)
+uint8_t get_direction_pin_mask(uint8_t axis_index)
 {
-  if ( axis_idx == X_AXIS ) { return((1<<X_DIRECTION_BIT)); }
-  if ( axis_idx == Y_AXIS ) { return((1<<Y_DIRECTION_BIT)); }
-  if ( axis_idx == Z_AXIS ) { return((1<<Z_DIRECTION_BIT)); }
-  if ( axis_idx == A_AXIS ) { return((1<<A_DIRECTION_BIT)); }
-  if ( axis_idx == B_AXIS ) { return((1<<B_DIRECTION_BIT)); }
-  if ( axis_idx == C_AXIS ) { return((1<<C_DIRECTION_BIT)); }
-  if ( axis_idx == D_AXIS ) { return((1<<D_DIRECTION_BIT)); }
+  if ( axis_index == X_AXIS ) { return((1<<X_DIRECTION_BIT)); }
+  if ( axis_index == Y_AXIS ) { return((1<<Y_DIRECTION_BIT)); }
+  if ( axis_index == Z_AXIS ) { return((1<<Z_DIRECTION_BIT)); }
+  if ( axis_index == A_AXIS ) { return((1<<A_DIRECTION_BIT)); }
+  if ( axis_index == B_AXIS ) { return((1<<B_DIRECTION_BIT)); }
+  if ( axis_index == C_AXIS ) { return((1<<C_DIRECTION_BIT)); }
+  if ( axis_index == D_AXIS ) { return((1<<D_DIRECTION_BIT)); }
   return((1<<E_DIRECTION_BIT));
 }
 
 
 // Returns limit pin mask according to Grbl internal axis indexing.
-uint8_t get_limit_pin_mask(uint8_t axis_idx)
+uint8_t get_limit_pin_mask(uint8_t axis_index)
 {
-  if ( axis_idx == X_AXIS ) { return((1<<X_LIMIT_BIT)); }
-  if ( axis_idx == Y_AXIS ) { return((1<<Y_LIMIT_BIT)); }
-  if ( axis_idx == Z_AXIS ) { return((1<<Z_LIMIT_BIT)); }
-  if ( axis_idx == A_AXIS ) { return((1<<A_LIMIT_BIT)); }
-  if ( axis_idx == B_AXIS ) { return((1<<B_LIMIT_BIT)); }
-  if ( axis_idx == C_AXIS ) { return((1<<C_LIMIT_BIT)); }
-  if ( axis_idx == D_AXIS ) { return((1<<D_LIMIT_BIT)); }
+  if ( axis_index == X_AXIS ) { return((1<<X_LIMIT_BIT)); }
+  if ( axis_index == Y_AXIS ) { return((1<<Y_LIMIT_BIT)); }
+  if ( axis_index == Z_AXIS ) { return((1<<Z_LIMIT_BIT)); }
+  if ( axis_index == A_AXIS ) { return((1<<A_LIMIT_BIT)); }
+  if ( axis_index == B_AXIS ) { return((1<<B_LIMIT_BIT)); }
+  if ( axis_index == C_AXIS ) { return((1<<C_LIMIT_BIT)); }
+  if ( axis_index == D_AXIS ) { return((1<<D_LIMIT_BIT)); }
   return((1<<E_LIMIT_BIT));
 }
